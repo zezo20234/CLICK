@@ -4,37 +4,93 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Click Game</title>
-  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      text-align: center;
+      background: linear-gradient(135deg, #4facfe, #00f2fe);
+      color: white;
+    }
+    .screen { padding: 20px; }
+    .hidden { display: none; }
+    #game-area {
+      margin: 20px auto;
+      width: 90%; height: 200px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 15px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+    }
+    button {
+      padding: 10px 20px; margin: 5px;
+      border: none; border-radius: 12px;
+      font-size: 16px; cursor: pointer;
+      background: #ff9800; color: white;
+      transition: 0.3s;
+    }
+    button:hover { background: #e68900; }
+    .modal {
+      position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.6);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .modal-content {
+      background: #222; padding: 20px;
+      border-radius: 15px; min-width: 300px;
+      color: white; text-align: center;
+      position: relative;
+    }
+    .close {
+      position: absolute; top: 10px; right: 20px;
+      font-size: 24px; cursor: pointer;
+    }
+    #medals-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, 80px);
+      gap: 10px; margin-top: 15px;
+    }
+    .medal {
+      width: 70px; height: 70px;
+      background: gold; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: bold;
+      transform-style: preserve-3d;
+      animation: spin 5s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotateY(0deg); }
+      100% { transform: rotateY(360deg); }
+    }
+  </style>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 </head>
 <body>
+  <!-- Login -->
   <div id="login-screen" class="screen">
     <h1>Login</h1>
-    <input type="text" id="username" placeholder="Username">
-    <input type="password" id="password" placeholder="Password">
+    <input type="text" id="username" placeholder="Username"><br><br>
+    <input type="password" id="password" placeholder="Password"><br><br>
     <button id="login-btn">Login</button>
     <p id="login-error"></p>
   </div>
 
+  <!-- Game -->
   <div id="game-screen" class="screen hidden">
     <h2 id="welcome"></h2>
     <div id="stats">
       <p>💰 Money: <span id="money">0</span>$</p>
       <p>🎯 Goal: <span id="goal">7000</span>$</p>
     </div>
-
     <div id="game-area">
       <p>Click anywhere to earn money!</p>
     </div>
-
     <div id="buttons">
       <button id="spin-btn">🎡 Spin the Wheel</button>
       <button id="medals-btn">🏅 Medals</button>
-      <button id="challenge-btn">⚔️ Challenge</button>
     </div>
-
-    <!-- Spin Result -->
     <p id="spin-result"></p>
 
     <!-- Medals Modal -->
@@ -45,34 +101,117 @@
         <div id="medals-container"></div>
       </div>
     </div>
-
-    <!-- Challenge Modal -->
-    <div id="challenge-modal" class="modal hidden">
-      <div class="modal-content">
-        <span class="close">&times;</span>
-        <h2>Create a Challenge</h2>
-        <label>Clicks:
-          <select id="challenge-clicks">
-            <option>100</option><option>200</option><option>300</option><option>500</option><option>1000</option>
-          </select>
-        </label>
-        <label>Bet ($):
-          <input type="number" id="challenge-bet" min="500" step="100" value="500">
-        </label>
-        <button id="send-challenge">Send Challenge</button>
-      </div>
-    </div>
-
-    <!-- Incoming Challenge -->
-    <div id="incoming-challenge" class="modal hidden">
-      <div class="modal-content">
-        <p id="challenge-text"></p>
-        <button id="accept-challenge">Accept</button>
-        <button id="decline-challenge">Decline</button>
-      </div>
-    </div>
   </div>
 
-  <script src="script.js"></script>
+<script>
+  // Firebase config
+  const firebaseConfig = {
+    apiKey: "AIzaSyAooLq0iO6pt7cEAu7VpdYmHEAyANsH4z8",
+    authDomain: "hatch-647fa.firebaseapp.com",
+    databaseURL: "https://hatch-647fa-default-rtdb.firebaseio.com",
+    projectId: "hatch-647fa",
+    storageBucket: "hatch-647fa.firebasestorage.app",
+    messagingSenderId: "1002694901238",
+    appId: "1:1002694901238:web:5c51840b40ea625e189bd7",
+    measurementId: "G-SSNDLN72PE"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  // Dummy logins
+  const users = { "zezo": "000", "lilly": "246", "asser": "230" };
+
+  let currentUser = null;
+  let money = 0;
+  let goal = 7000;
+  let medals = [];
+
+  // DOM elements
+  const loginScreen = document.getElementById("login-screen");
+  const gameScreen = document.getElementById("game-screen");
+  const loginBtn = document.getElementById("login-btn");
+  const loginError = document.getElementById("login-error");
+  const welcome = document.getElementById("welcome");
+  const moneyEl = document.getElementById("money");
+  const goalEl = document.getElementById("goal");
+  const gameArea = document.getElementById("game-area");
+  const spinBtn = document.getElementById("spin-btn");
+  const spinResult = document.getElementById("spin-result");
+  const medalsBtn = document.getElementById("medals-btn");
+  const medalsModal = document.getElementById("medals-modal");
+  const medalsContainer = document.getElementById("medals-container");
+
+  // Login
+  loginBtn.onclick = () => {
+    const u = document.getElementById("username").value.trim();
+    const p = document.getElementById("password").value.trim();
+    if (users[u] && users[u] === p) {
+      currentUser = u;
+      loginScreen.classList.add("hidden");
+      gameScreen.classList.remove("hidden");
+      welcome.innerText = `Welcome, ${u}!`;
+      loadProgress();
+    } else {
+      loginError.innerText = "Invalid login!";
+    }
+  };
+
+  // Clicking game
+  gameArea.onclick = () => { money++; updateMoney(); };
+
+  // Update money
+  function updateMoney() {
+    moneyEl.innerText = money;
+    if (money >= goal) {
+      medals.push(`Medal ${medals.length+1}`);
+      goal += 500;
+      goalEl.innerText = goal;
+      saveProgress();
+    }
+    saveProgress();
+  }
+
+  // Spin wheel
+  spinBtn.onclick = () => {
+    const prizes = [1000,2000,3000,4000,5000];
+    const prize = prizes[Math.floor(Math.random()*prizes.length)];
+    money += prize;
+    spinResult.innerText = `You won $${prize}!`;
+    updateMoney();
+  };
+
+  // Medals modal
+  medalsBtn.onclick = () => {
+    medalsModal.classList.remove("hidden");
+    medalsContainer.innerHTML = "";
+    medals.forEach(m => {
+      const div = document.createElement("div");
+      div.classList.add("medal");
+      div.innerText = m;
+      medalsContainer.appendChild(div);
+    });
+  };
+  medalsModal.querySelector(".close").onclick = () => medalsModal.classList.add("hidden");
+
+  // Save progress
+  function saveProgress() {
+    if (!currentUser) return;
+    db.ref("users/"+currentUser).set({ money, goal, medals });
+  }
+
+  // Load progress
+  function loadProgress() {
+    db.ref("users/"+currentUser).once("value").then(snap => {
+      if (snap.exists()) {
+        const data = snap.val();
+        money = data.money || 0;
+        goal = data.goal || 7000;
+        medals = data.medals || [];
+        moneyEl.innerText = money;
+        goalEl.innerText = goal;
+      }
+    });
+  }
+</script>
 </body>
 </html>
