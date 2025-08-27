@@ -3,7 +3,22 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Zezo Clicker — Full Release</title>
+<title>Zezo Clicker — Full Release (CPS & Shiny Medals)</title>
+
+<!-- iOS home-screen icons (iPhone / iPad) -->
+<link rel="apple-touch-icon" sizes="180x180" href="/ps5-180.png">
+<link rel="apple-touch-icon" sizes="167x167" href="/ps5-167.png">
+<link rel="apple-touch-icon" sizes="152x152" href="/ps5-152.png">
+<link rel="apple-touch-icon" sizes="120x120" href="/ps5-120.png">
+
+<!-- Fallback favicon / progressive web manifest -->
+<link rel="icon" type="image/png" sizes="512x512" href="/ps5-512.png">
+<link rel="manifest" href="/manifest.json">
+
+<!-- iOS web app meta -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Zezo Clicker">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 
 <!-- Firebase compat -->
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
@@ -38,6 +53,11 @@
   #game-area{margin:6px 0;border-radius:12px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));height:56vh;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;cursor:pointer;user-select:none}
   #click-hint{font-size:20px;padding:8px}
 
+  /* CPS overlay */
+  .cps-badge{position:absolute;left:12px;top:12px;background:rgba(0,0,0,0.45);padding:8px 10px;border-radius:10px;font-weight:800;backdrop-filter: blur(6px);border:1px solid rgba(255,255,255,0.04)}
+  .cps-badge strong{display:block;font-size:16px}
+  .cps-badge span{font-size:13px;opacity:0.9}
+
   /* ripple */
   .ripple{position:absolute;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;opacity:0.55}
 
@@ -50,11 +70,17 @@
   /* medals panel */
   .medals-wrap{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-top:12px}
   .medal-card{perspective:900px;height:120px}
-  .medal-inner{width:100%;height:100%;border-radius:16px;position:relative;transform-style:preserve-3d;transition:transform 0.12s linear}
+  .medal-inner{width:100%;height:100%;border-radius:16px;position:relative;transform-style:preserve-3d;transition:transform 0.18s linear}
   .medal-front, .medal-back{position:absolute;inset:0;border-radius:16px;display:flex;align-items:center;justify-content:center;backface-visibility:hidden;font-weight:800}
-  .medal-front{background:linear-gradient(135deg,#ffd54a,#ffc107);color:#3b2200;font-size:16px;box-shadow: 0 6px 18px rgba(0,0,0,0.35)}
+  .medal-front{background:linear-gradient(135deg,#ffd54a,#ffc107);color:#3b2200;font-size:16px;box-shadow: 0 6px 18px rgba(0,0,0,0.35);position:relative;overflow:hidden}
+  .medal-front::after{content:'';position:absolute;inset:0;background:linear-gradient(120deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));mix-blend-mode:screen;pointer-events:none}
+  .medal-front.shiny{box-shadow: 0 10px 30px rgba(255,200,40,0.18), 0 0 30px rgba(255,200,40,0.06) inset}
   .medal-back{background:linear-gradient(135deg,#0b1220,#0f1822);transform:rotateY(180deg);color:#9fb7c5;font-size:12px;flex-direction:column;gap:6px;padding:10px;text-align:center}
   .medal-draggable{cursor:grab}
+
+  /* shiny pulse for newly earned */
+  .new-medal{animation:newPulse .9s ease;}
+  @keyframes newPulse{0%{transform:scale(0.9);opacity:0}50%{transform:scale(1.06);opacity:1}100%{transform:scale(1);opacity:1}}
 
   /* modal / challenge UI */
   .modal{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center}
@@ -63,38 +89,48 @@
   .big-click{width:220px;height:220px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(180deg,#ff8a00,#ffca78);font-weight:900;color:#2f1200;cursor:pointer;font-size:28px;box-shadow:0 8px 30px rgba(0,0,0,0.4)}
   .challenge-stats{display:flex;gap:12px;margin-top:12px}
 
-  /* admin messages (center overlay) */
+  /* admin messages (moved to top-right) */
   #admin-messages {
     position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    width: min(880px, 90vw);
+    right: 12px;
+    top: 12px;
+    left: auto;
+    transform: none;
     pointer-events: none; /* messages don't block game clicks */
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: flex-end;
     gap: 10px;
     z-index: 9999;
   }
   .admin-msg {
     pointer-events: auto;
-    background: linear-gradient(180deg, rgba(0,0,0,0.7), rgba(0,0,0,0.55));
-    padding: 14px 18px;
+    background: linear-gradient(180deg, rgba(0,0,0,0.75), rgba(0,0,0,0.6));
+    padding: 12px 16px;
     border-radius: 12px;
     color: white;
-    min-width: 320px;
+    min-width: 220px;
     max-width: 100%;
     box-shadow: 0 12px 30px rgba(0,0,0,0.6);
-    text-align: center;
+    text-align: right;
     font-weight: 800;
-    font-size: 18px;
-    border: 2px solid rgba(255,255,255,0.06);
+    font-size: 15px;
+    border: 1px solid rgba(255,255,255,0.04);
     transform: translateY(0);
     opacity: 0;
-    animation: admin-pop .28s ease forwards;
+    animation: admin-pop-tr .28s ease forwards;
   }
-  @keyframes admin-pop { from { transform: translateY(-8px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+  @keyframes admin-pop-tr { from { transform: translateY(-8px) translateX(8px); opacity: 0 } to { transform: translateY(0); transform: none; opacity: 1 } }
+
+  .admin-medal {
+    background: linear-gradient(135deg,#ffd54a,#ffc107);
+    color: #3b2200;
+    font-weight:900;
+    padding: 12px 16px;
+    border-radius: 12px;
+    box-shadow: 0 12px 30px rgba(255,200,40,0.12);
+    text-align: right;
+  }
 
   .admin-from { font-size: 13px; opacity: 0.85; font-weight:700; margin-bottom:6px }
   .admin-expire { font-size:12px; opacity:0.75; margin-top:8px; font-weight:600 }
@@ -106,6 +142,10 @@
     #game-area{height:60vh}
     .stat{min-width:88px}
   }
+
+  /* keep signed label */
+  .keep-row{display:flex;align-items:center;gap:8px;margin-top:6px}
+  .keep-row input[type="checkbox"]{width:18px;height:18px}
 </style>
 </head>
 <body>
@@ -117,6 +157,10 @@
         <div style="display:grid;gap:12px">
           <input id="username" type="text" placeholder="Username (zezo / lilly / asser)" autocomplete="off" autocapitalize="off">
           <input id="password" type="password" placeholder="Password" autocomplete="new-password">
+          <div class="keep-row">
+            <input id="keep-signed" type="checkbox">
+            <label for="keep-signed" class="muted" style="cursor:pointer">Keep me signed in (auto-login)</label>
+          </div>
           <div style="display:flex;gap:8px">
             <button id="login-btn" class="btn-primary">Login</button>
             <button id="help-btn" class="btn-ghost">How to play</button>
@@ -149,18 +193,24 @@
       </div>
 
       <div id="game-area" class="card">
-        <div id="click-hint">Click anywhere inside this area to earn money. Use spin & challenges to win big.</div>
+        <div id="click-hint">Click anywhere inside this area to earn money. Use challenges to win big.</div>
         <div id="effects" style="position:absolute;inset:0;pointer-events:none"></div>
 
-        <!-- admin messages appear here (center overlay) -->
+        <!-- CPS & click value badge -->
+        <div class="cps-badge">
+          <strong id="cps">0</strong>
+          <span>Clicks / sec — Value: <span id="click-value">1</span></span>
+        </div>
+
+        <!-- admin messages appear here (top-right) -->
         <div id="admin-messages"></div>
       </div>
 
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;gap:10px;flex-wrap:wrap">
         <div class="controls">
-          <div id="spin-btn" class="spin-wheel" title="Spin (30s cooldown)">🎡</div>
+          <!-- SPINNER REMOVED -->
           <div style="min-width:160px">
-            <div id="spin-feedback" class="muted" style="font-size:13px">Spin for 1000-5000$</div>
+            <div id="spin-feedback" class="muted" style="font-size:13px">Spin feature removed.</div>
           </div>
         </div>
 
@@ -170,10 +220,10 @@
       <div id="medals-panel" class="card" style="margin-top:14px;display:none">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <h3 style="margin:0">Your Medals</h3>
-          <div class="muted">Drag each medal to rotate in 3D</div>
+          <div class="muted">Drag each medal to rotate in 3D — click to flip — hold to delete</div>
         </div>
         <div id="medals-list" class="medals-wrap" style="margin-top:12px"></div>
-        <div class="footer">Each time you reach the goal you earn a medal and the next goal increases by $500.</div>
+        <div class="footer">Each time you reach the goal you earn a medal and the next goal increases by $500. Medals now include reasons.</div>
       </div>
     </div>
   </div>
@@ -265,20 +315,14 @@ let medals = [];
 let resets = 0;
 let clickValue = 1;
 let saveTimer = null;
-let spinLocked = false;
-const SPIN_COOLDOWN = 30;
-let spinCooldown = 0;
 let activeRoomListeners = {};
 let currentInvitation = null;
 let currentRoomId = null;
 
-/* daily spin state */
-let freeSpins = 0;
-let lastDailySpinDate = null;
-let _dailyGrantTimer = null;
-
-/* theme state */
-let discoInterval = null;
+// CPS tracking
+let clickTimestamps = [];
+let bestCPS = 0;
+let lastCPS = 0;
 
 /* ========== DOM ========== */
 const loginCard = document.getElementById('login-card');
@@ -286,6 +330,7 @@ const loginBtn = document.getElementById('login-btn');
 const helpBtn = document.getElementById('help-btn');
 const usernameInp = document.getElementById('username');
 const passwordInp = document.getElementById('password');
+const keepSignedChk = document.getElementById('keep-signed');
 const loginMsg = document.getElementById('login-msg');
 
 const gameUi = document.getElementById('game-ui');
@@ -296,7 +341,6 @@ const goalEl = document.getElementById('goal');
 const medalCountEl = document.getElementById('medal-count');
 const gameArea = document.getElementById('game-area');
 const effects = document.getElementById('effects');
-const spinBtn = document.getElementById('spin-btn');
 const spinFeedback = document.getElementById('spin-feedback');
 const medalsPanel = document.getElementById('medals-panel');
 const medalsList = document.getElementById('medals-list');
@@ -304,6 +348,8 @@ const medalsOpen = document.getElementById('medals-open');
 const challengeOpen = document.getElementById('challenge-open');
 const logoutBtn = document.getElementById('logout');
 const resetBtn = document.getElementById('reset');
+const cpsEl = document.getElementById('cps');
+const clickValueEl = document.getElementById('click-value');
 
 const adminMessagesContainer = document.getElementById('admin-messages');
 
@@ -335,6 +381,15 @@ function uid(){ return (Date.now().toString(36) + Math.random().toString(36).sli
 function nowTs(){ return Date.now(); }
 function show(el){ el.classList.remove('invisible'); }
 function hide(el){ el.classList.add('invisible'); }
+
+/* small temporary message (top-right) */
+function showTempMessage(text, timeout=2500){
+  const el = document.createElement('div');
+  el.className = 'admin-msg';
+  el.innerHTML = `<div style="font-weight:900">${text}</div>`;
+  adminMessagesContainer.prepend(el);
+  setTimeout(()=> el.remove(), timeout);
+}
 
 /* Throttle save */
 function throttleSave(){
@@ -382,10 +437,16 @@ loginBtn.addEventListener('click', ()=>{
   if(PASSWORDS[u] !== p){ loginMsg.textContent = 'Invalid credentials'; return; }
   // success
   currentUser = u;
+  // persistent sign-in
+  if(keepSignedChk.checked){
+    try { localStorage.setItem('zezo_clicker_user', currentUser); } catch(e){}
+  } else {
+    try { localStorage.removeItem('zezo_clicker_user'); } catch(e){}
+  }
   startSession();
 });
 
-helpBtn.addEventListener('click', ()=> alert('Click in the big area to earn money. Reach goal to get medals. Use Challenge to invite online players and bet money. Admin messages show in the center of the screen.'));
+helpBtn.addEventListener('click', ()=> alert('Click in the big area to earn money. Reach goal to get medals. New medals are awarded for records and special achievements. Hold a medal to delete it.'));
 
 function startSession(){
   loginCard.classList.add('invisible');
@@ -405,10 +466,11 @@ function startSession(){
   populateOpponents();
 }
 
-/* logout */
+/* logout - clears persisted sign-in and presence */
 logoutBtn.addEventListener('click', ()=>{
   if(currentUser){
-    db.ref('presence/'+currentUser).set(false);
+    try { localStorage.removeItem('zezo_clicker_user'); } catch(e){}
+    db.ref('presence/'+currentUser).set(false).catch(()=>{});
   }
   location.reload();
 });
@@ -417,12 +479,12 @@ logoutBtn.addEventListener('click', ()=>{
 resetBtn.addEventListener('click', ()=>{
   if(!currentUser) return;
   if(!confirm('Reset your progress? This will remove money, medals, and goals.')) return;
-  db.ref('users/'+currentUser).set({money:0, goal:7000, medals:[], resets:0, freeSpins:0, lastDailySpinDate:null}).then(()=>{
-    money=0; goal=7000; medals=[]; resets=0; clickValue=1; freeSpins=0; lastDailySpinDate=null; refreshUI();
+  db.ref('users/'+currentUser).set({money:0, goal:7000, medals:[], resets:0, bestCPS:0}).then(()=>{
+    money=0; goal=7000; medals=[]; resets=0; clickValue=1; bestCPS=0; clickTimestamps=[]; refreshUI();
   }).catch(()=>alert('Reset failed'));
 });
 
-/* ========== GAME: clicks, spin, medals ========== */
+/* ========== GAME: clicks, medals ========== */
 gameArea.addEventListener('pointerdown', (ev)=>{
   if(!currentUser) return;
   if(currentRoomId) return; // while in duel, disable main clicks
@@ -435,9 +497,66 @@ gameArea.addEventListener('pointerdown', (ev)=>{
 
 function addMoney(amount){
   money = (money||0) + amount;
+  // add click timestamp for CPS calc
+  clickTimestamps.push(Date.now());
+  updateCPS();
   checkGoal();
   animateMoney(money);
   throttleSave();
+}
+
+/* CPS calculation and record checks */
+function updateCPS(){
+  const now = Date.now();
+  clickTimestamps = clickTimestamps.filter(t=> now - t <= 1000);
+  const cps = clickTimestamps.length;
+  lastCPS = cps;
+  cpsEl.textContent = cps;
+  clickValueEl.textContent = clickValue;
+  checkCPSRecords(cps);
+}
+
+function checkCPSRecords(cps){
+  // personal best
+  if(cps > (bestCPS || 0)){
+    const prev = bestCPS || 0;
+    bestCPS = cps;
+    // award personal best medal (unique)
+    if(!hasMedalType('best_cps')){
+      awardMedal('best_cps', `New CPS Record: ${cps}`, `You set a new personal best of ${cps} clicks/sec (previous ${prev}).`);
+    } else {
+      // still add a medal with a unique id so user can collect many personal bests if desired
+      awardMedal('best_cps_' + nowTs(), `New CPS Record: ${cps}`, `You set a new personal best of ${cps} clicks/sec.`);
+    }
+  }
+  // special milestone: 60 CPS (one-time)
+  if(cps >= 60 && !hasMedalType('60_cps')){
+    awardMedal('60_cps', '60 CPS!', 'Insane speed — you reached 60 clicks per second!');
+  }
+}
+
+function hasMedalType(type){
+  return medals.some(m => m.type === type);
+}
+
+function awardMedal(type, label, reason){
+  // create medal and push
+  const id = uid();
+  const time = new Date().toISOString();
+  const medal = { id, type, label, reason, time };
+  medals.push(medal);
+  // visual notification
+  showMedalNotification(medal);
+  refreshUI();
+  throttleSave();
+}
+
+function showMedalNotification(medal){
+  const el = document.createElement('div');
+  el.className = 'admin-msg admin-medal new-medal';
+  el.innerHTML = `<div class="admin-from">Medal Earned</div><div style="font-size:16px;font-weight:900">${medal.label}</div><div style="margin-top:6px;font-size:13px;opacity:0.95">${medal.reason}</div>`;
+  adminMessagesContainer.prepend(el);
+  setTimeout(()=> el.remove(), 4500);
 }
 
 /* goal check & medals awarding */
@@ -446,7 +565,7 @@ function checkGoal(){
     const id = (medals.length||0) + 1;
     const label = `Medal #${id}`;
     const time = new Date().toISOString();
-    medals.push({id, label, time});
+    medals.push({id: uid(), label, time, reason: `Reached goal of $${goal}`});
     // carryover
     money = money - goal;
     // increase goal
@@ -454,86 +573,14 @@ function checkGoal(){
     // resets and clickValue progression
     resets = (resets||0) + 1;
     clickValue = (resets === 0) ? 1 : resets * 5;
+    // update info panel
     spinFeedback.textContent = `Goal reached! ${label} — click value: ${clickValue}`;
     refreshUI();
     throttleSave();
   }
 }
 
-/* spin */
-spinBtn.addEventListener('click', ()=>{
-  if(!currentUser) { spinFeedback.textContent = 'Login to spin'; return; }
-  // free spins used first (bypass cooldown)
-  if((freeSpins || 0) > 0){
-    freeSpins = freeSpins - 1;
-    saveProgress();
-    spinFeedback.textContent = `Using free spin...`;
-    performSpin().then(prize=>{
-      spinFeedback.textContent = `You won $${prize}! (free spin)`;
-      addMoney(prize);
-    }).catch(()=>{
-      spinFeedback.textContent = 'Spin failed';
-      freeSpins = (freeSpins || 0) + 1;
-      saveProgress();
-    });
-    refreshUI();
-    return;
-  }
-  if(spinLocked) return;
-  spinLocked = true;
-  spinBtn.classList.add('spin-disabled');
-  performSpin().then(prize=>{
-    spinFeedback.textContent = `You won $${prize}!`;
-    addMoney(prize);
-    startSpinCooldown(SPIN_COOLDOWN);
-  }).catch(()=>{
-    spinFeedback.textContent = 'Spin failed';
-    spinLocked = false;
-    spinBtn.classList.remove('spin-disabled');
-  });
-});
-
-function performSpin(){
-  spinBtn.style.transition = 'transform 1.6s cubic-bezier(.2,.9,.3,1)';
-  spinBtn.style.transform = 'rotate(1080deg)';
-  return new Promise(res=>{
-    setTimeout(()=>{
-      spinBtn.style.transform = '';
-      setTimeout(()=> spinBtn.style.transition = '', 200);
-      const prizes = [1000,2000,3000,4000,5000];
-      const prize = prizes[Math.floor(Math.random()*prizes.length)];
-      res(prize);
-    }, 1600);
-  });
-}
-
-function startSpinCooldown(seconds){
-  spinCooldown = seconds;
-  updateSpinLabel();
-  const t = setInterval(()=>{
-    spinCooldown--;
-    updateSpinLabel();
-    if(spinCooldown <= 0){
-      clearInterval(t);
-      spinLocked = false;
-      spinBtn.classList.remove('spin-disabled');
-      spinFeedback.textContent = 'Spin ready!';
-      spinCooldown = 0;
-      updateSpinLabel();
-    }
-  },1000);
-}
-function updateSpinLabel(){ 
-  if((freeSpins || 0) > 0){
-    spinFeedback.textContent = `Free spins: ${freeSpins} — click to use`;
-  } else if(spinCooldown>0){
-    spinFeedback.textContent = `Spin ready in ${spinCooldown}s`;
-  } else {
-    spinFeedback.textContent = 'Spin for 1000-5000$';
-  }
-}
-
-/* medals UI (draggable 3D) */
+/* medals UI (draggable 3D + hold-to-delete) */
 medalsOpen.addEventListener('click', ()=>{
   medalsPanel.style.display = medalsPanel.style.display === 'none' ? 'block' : 'none';
   renderMedals();
@@ -543,24 +590,62 @@ function renderMedals(){
   medalsList.innerHTML = '';
   medalCountEl.textContent = medals.length;
   if(!medals || medals.length === 0){
-    medalsList.innerHTML = '<div class="muted" style="padding:12px">No medals yet — reach the goal to earn medals.</div>';
+    medalsList.innerHTML = '<div class="muted" style="padding:12px">No medals yet — reach the goal to earn medals or break records.</div>';
     return;
   }
+  // show newest first
   medals.slice().reverse().forEach(m=>{
     const wrap = document.createElement('div'); wrap.className = 'medal-card card';
     wrap.style.padding = '8px';
+    wrap.style.position = 'relative';
     const inner = document.createElement('div'); inner.className = 'medal-inner medal-draggable';
     inner.style.background = 'transparent';
     inner.style.height = '100%';
     inner.style.display = 'block';
-    const front = document.createElement('div'); front.className='medal-front';
+
+    const front = document.createElement('div'); front.className='medal-front shiny';
     front.style.borderRadius='12px';
-    front.innerHTML = `<div style="font-size:20px">${m.label}</div>`;
+    front.innerHTML = `<div style="font-size:18px;display:flex;flex-direction:column;gap:6px;align-items:center"><div>${m.label}</div><div style="font-size:12px;font-weight:700;color:rgba(0,0,0,0.5)">${new Date(m.time).toLocaleString()}</div></div>`;
+
     const back = document.createElement('div'); back.className='medal-back';
-    back.innerHTML = `<div style="font-size:12px">Earned by</div><div style="font-size:14px">${currentUser}</div><div style="font-size:10px;color:rgba(255,255,255,0.35)">${new Date(m.time).toLocaleString()}</div>`;
+    back.innerHTML = `<div style="font-size:12px">Reason</div><div style="font-size:14px">${m.reason || '—'}</div><div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:6px">${new Date(m.time).toLocaleString()}</div>`;
+
     inner.appendChild(front); inner.appendChild(back);
     wrap.appendChild(inner);
     medalsList.appendChild(wrap);
+
+    // flip on click
+    let flipped=false;
+    wrap.addEventListener('click', ()=>{
+      // small guard: if dragging skip
+      if(wrap._longPressActive) return; // ignore click if long-press was processed
+      flipped = !flipped;
+      inner.style.transform = flipped ? 'rotateY(180deg)' : 'rotateY(0deg)';
+    });
+
+    // long-press to delete (700ms)
+    let pressTimer = null;
+    const startPress = (e) => {
+      e.preventDefault();
+      wrap._longPressActive = false;
+      if(pressTimer) clearTimeout(pressTimer);
+      pressTimer = setTimeout(()=>{
+        wrap._longPressActive = true;
+        const ok = confirm('Delete this medal? This cannot be undone.');
+        if(ok){
+          medals = medals.filter(mm => mm.id !== m.id);
+          saveProgress();
+          renderMedals();
+          showTempMessage('Medal deleted');
+        }
+      }, 700);
+    };
+    const cancelPress = ()=>{ if(pressTimer) { clearTimeout(pressTimer); pressTimer = null; } };
+
+    wrap.addEventListener('pointerdown', startPress);
+    wrap.addEventListener('pointerup', cancelPress);
+    wrap.addEventListener('pointercancel', cancelPress);
+    wrap.addEventListener('pointerleave', cancelPress);
 
     // draggable rotation
     let dragging=false, sx=0, sy=0, rx=0, ry=0;
@@ -596,19 +681,11 @@ function renderMedals(){
   });
 }
 
-/* ========== SAVE / LOAD + DAILY FREE SPIN ========== */
+/* ========== SAVE / LOAD ========== */
 function saveProgress(){
   if(!currentUser) return;
-  const payload = { money: money||0, goal: goal||7000, medals: medals||[], resets: resets||0, freeSpins: freeSpins||0, lastDailySpinDate: lastDailySpinDate || null };
+  const payload = { money: money||0, goal: goal||7000, medals: medals||[], resets: resets||0, bestCPS: bestCPS||0 };
   db.ref('users/' + currentUser).set(payload).catch(err=> console.warn('Save err', err));
-}
-
-function localDateString(d = new Date()){
-  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-}
-
-function getTodayLocalString(){
-  return localDateString(new Date());
 }
 
 function loadProgress(){
@@ -620,55 +697,23 @@ function loadProgress(){
       goal = Number(d.goal || 7000);
       medals = Array.isArray(d.medals)? d.medals : (d.medals||[]);
       resets = Number(d.resets || (d && d.medals ? d.medals.length:0) ) || 0;
-      freeSpins = Number(d.freeSpins || 0);
-      lastDailySpinDate = d.lastDailySpinDate || null;
+      bestCPS = Number(d.bestCPS || 0);
     } else {
-      money = 0; goal = 7000; medals = []; resets = 0; freeSpins = 0; lastDailySpinDate = null;
+      money = 0; goal = 7000; medals = []; resets = 0; bestCPS = 0;
     }
     clickValue = (resets === 0) ? 1 : resets * 5;
-    checkAndGrantDailySpin();
     refreshUI();
   }).catch(e=>{
     console.warn('Load fail', e);
-    money=0; goal=7000; medals=[]; resets=0; clickValue=1; freeSpins=0; lastDailySpinDate=null;
-    checkAndGrantDailySpin();
+    money=0; goal=7000; medals=[]; resets=0; clickValue=1; bestCPS=0;
     refreshUI();
   });
 }
 
-function checkAndGrantDailySpin(){
-  try {
-    const today = getTodayLocalString();
-    if(lastDailySpinDate !== today){
-      freeSpins = (freeSpins || 0) + 1;
-      lastDailySpinDate = today;
-      spinFeedback.textContent = `Daily free spin awarded! Free spins: ${freeSpins}`;
-      saveProgress();
-    }
-  } catch(e){ console.warn('daily grant check error', e); }
-  scheduleNextMidnightGrant();
-}
-
-function scheduleNextMidnightGrant(){
-  if(_dailyGrantTimer) { clearTimeout(_dailyGrantTimer); _dailyGrantTimer = null; }
-  const now = new Date();
-  const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1, 0);
-  const ms = nextMidnight - now;
-  const timeoutMs = Math.max(1000, Math.min(ms, 1000 * 60 * 60 * 24));
-  _dailyGrantTimer = setTimeout(() => {
-    try {
-      const today = getTodayLocalString();
-      freeSpins = (freeSpins || 0) + 1;
-      lastDailySpinDate = today;
-      spinFeedback.textContent = `Daily free spin awarded! Free spins: ${freeSpins}`;
-      saveProgress();
-    } catch(e){ console.warn('daily grant error', e); }
-    scheduleNextMidnightGrant();
-  }, timeoutMs);
-}
-
 /* save on unload */
-window.addEventListener('beforeunload', ()=> { if(currentUser) db.ref('users/'+currentUser).set({money:money||0,goal:goal||7000,medals:medals,resets:resets, freeSpins: freeSpins||0, lastDailySpinDate: lastDailySpinDate || null}); });
+window.addEventListener('beforeunload', ()=> {
+  if(currentUser) db.ref('users/'+currentUser).set({money:money||0,goal:goal||7000,medals:medals,resets:resets,bestCPS:bestCPS});
+});
 
 /* ========== CHALLENGE SYSTEM ========== */
 function populateOpponents(){
@@ -699,7 +744,7 @@ challengeSend.addEventListener('click', ()=>{
     return;
   }, (err, committed, snap) => {
     if(err || !committed){
-      challengeMsg.textContent = 'Not enough funds to place bet';
+      challengeMsg.textContent = 'coming soon...';
       return;
     }
     const invId = uid();
@@ -857,33 +902,22 @@ function closeDuel(roomId){
   duelClick.onclick = null;
 }
 
-duelLeave.addEventListener('click', ()=> { if(!currentRoomId) hide(duelModal); else { closeDuel(currentRoomId); hide(duelModal); } });
+duelLeave.addEventListener('click', ()=> { if(!currentRoomId) hide(duel-modal); else { closeDuel(currentRoomId); hide(duel-modal); } });
 
 /* ========== ANNOUNCEMENTS (controller -> game) ========== */
-/*
-  Behavior:
-   - Listen to /announcements ordered by ts.
-   - For each announcement 'a': if !a.seen || !a.seen[currentUser] then display it.
-   - When displayed for this user, set /announcements/<id>/seen/<currentUser> = true so it won't show again for them on refresh.
-   - New messages appear above older ones (newest on top).
-*/
-
 function listenAnnouncements(){
   if(!currentUser) return;
   const annRef = db.ref('announcements').orderByChild('ts');
   annRef.off();
-  // load existing announcements once to display backlog
   annRef.once('value').then(snap => {
     const data = snap.val() || {};
-    const arr = Object.values(data).sort((a,b)=> a.ts - b.ts); // ascending
+    const arr = Object.values(data).sort((a,b)=> a.ts - b.ts);
     arr.forEach(a => handleAnnouncement(a));
   });
-  // then watch for new ones
   db.ref('announcements').on('child_added', snap => {
     const a = snap.val();
     handleAnnouncement(a);
   });
-  // clean up removed children visually
   db.ref('announcements').on('child_removed', snap => {
     const id = snap.key;
     const el = document.getElementById('ann_' + id);
@@ -893,24 +927,18 @@ function listenAnnouncements(){
 
 function handleAnnouncement(a){
   if(!a || !a.id) return;
-  // if already seen by this user, skip
   if(a.seen && a.seen[currentUser]) return;
-  // show announcement
   displayAnnouncement(a);
-  // mark seen for this user so it won't reappear even after refresh
   db.ref(`announcements/${a.id}/seen/${currentUser}`).set(true).catch(e=> console.warn('mark seen failed', e));
 }
 
 function displayAnnouncement(a){
-  // create element; newest should be on top -> we will prepend to container
   const id = a.id || ('ann_' + Math.random().toString(36).slice(2,9));
   const el = document.createElement('div');
   el.className = 'admin-msg';
   el.id = 'ann_' + id;
-  el.innerHTML = `<div class="admin-from">${a.from || 'Admin'}</div><div class="admin-text">${a.text || ''}</div><div class="admin-expire muted">Hiding in ${Math.ceil((a.durationSec||8))}s</div>`;
-  // prepend -> newest on top
+  el.innerHTML = `<div class="admin-from">${a.from || 'Admin'}</div><div class="admin-text" style="text-align:right">${a.text || ''}</div><div class="admin-expire muted">Hiding in ${Math.ceil((a.durationSec||8))}s</div>`;
   adminMessagesContainer.prepend(el);
-  // update countdown text every second and remove after duration
   let remaining = Math.max(1, Number(a.durationSec || 8));
   const expireLabel = el.querySelector('.admin-expire');
   expireLabel.textContent = `Hiding in ${remaining}s`;
@@ -923,15 +951,10 @@ function displayAnnouncement(a){
     }
     expireLabel.textContent = `Hiding in ${remaining}s`;
   }, 1000);
-  // also remove after exact duration in case tab hidden
   setTimeout(()=> { el.remove(); clearInterval(interval); }, (a.durationSec || 8) * 1000 + 150);
 }
 
 /* ========== THEME HANDLING (controller -> game) ========== */
-/*
-  Controller writes /theme/current with payload: { name, ts, presets }
-  presets: { bg: [...colors], btn: '#hex' } or for disco, bg array of colors
-*/
 function listenTheme(){
   const themeRef = db.ref('theme/current');
   themeRef.off();
@@ -949,8 +972,8 @@ function applyThemePayload(payload){
   applyTheme(name, p);
 }
 
+let discoInterval = null;
 function applyTheme(name, presets=null){
-  // clear disco if present
   if(discoInterval) { clearInterval(discoInterval); discoInterval = null; }
   const known = {
     original: { bg: ['#071022','#001d2d'], btn: '#06b6d4' },
@@ -965,7 +988,6 @@ function applyTheme(name, presets=null){
   };
   const preset = presets || (known[name] || known.original);
   if(name === 'disco' || preset.btn === 'disco'){
-    // disco: rapidly cycle body's gradient through preset colors
     let i = 0;
     discoInterval = setInterval(()=>{
       const colors = preset.bg;
@@ -973,7 +995,6 @@ function applyTheme(name, presets=null){
       const b = colors[(i+1) % colors.length];
       document.documentElement.style.setProperty('--bg-a', a);
       document.documentElement.style.setProperty('--bg-b', b);
-      // set button color to next color for fun
       document.documentElement.style.setProperty('--cta', colors[(i+2) % colors.length]);
       i++;
     }, 600);
@@ -982,28 +1003,14 @@ function applyTheme(name, presets=null){
     document.documentElement.style.setProperty('--bg-b', preset.bg[1] || (preset.bg[0] || '#001d2d'));
     document.documentElement.style.setProperty('--cta', preset.btn || '#ff8a00');
   }
-  // update spin button color quickly by direct style (some elements are styled inline)
-  // (buttons using .btn-primary read --cta from CSS only on load; but we can also update computed appearance)
-  // We'll keep CSS variable update enough: .btn-primary uses --cta.
 }
 
 /* ========== LISTENERS / INIT ========== */
-function listenTheme(){} // placeholder so function exists before definition above; real listener assigned in startSession
-// but already defined above — reassign properly:
-(function(){ /* noop */ })();
-
-/* ========== INITIAL UI ACTIONS ========== */
 usernameInp.addEventListener('keydown', e=> { if(e.key==='Enter') passwordInp.focus(); });
 passwordInp.addEventListener('keydown', e=> { if(e.key==='Enter') loginBtn.click(); });
 
 /* ========== POPULATE USERS (for challenges) ========== */
-function populateOpponents(){
-  opponentSelect.innerHTML = '';
-  USERS.forEach(u => { if(u===currentUser) return; const o = document.createElement('option'); o.value=u; o.textContent=u; opponentSelect.appendChild(o); });
-}
-
-/* ========== ANNOUNCEMENTS AND THEME LISTENERS START ON SESSION ========== */
-/* startSession already calls listenAnnouncements() and listenTheme() */
+// populateOpponents defined above
 
 /* ========== REFRESH UI ========== */
 function refreshUI(){
@@ -1011,16 +1018,28 @@ function refreshUI(){
   goalEl.textContent = goal;
   medalCountEl.textContent = medals.length;
   renderMedals();
-  updateSpinLabel();
+  cpsEl.textContent = lastCPS || 0;
+  clickValueEl.textContent = clickValue || 1;
 }
 
 /* ========== INITIALIZE ========== */
 (function init(){
-  // initial UI defaults
   hide(gameUi);
   medalsPanel.style.display = 'none';
-  // ensure theme listener exists even before login: apply original
   applyTheme('original');
+
+  // Auto-login if keep-signed was used previously
+  try {
+    const saved = localStorage.getItem('zezo_clicker_user');
+    if(saved && USERS.includes(saved)){
+      currentUser = saved;
+      // Mark checkbox visually on login card for user's awareness
+      keepSignedChk.checked = true;
+      startSession();
+    }
+  } catch(e){
+    // ignore localStorage errors
+  }
 })();
 </script>
 </body>
