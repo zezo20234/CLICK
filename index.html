@@ -1,217 +1,1027 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Click Game</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      text-align: center;
-      background: linear-gradient(135deg, #4facfe, #00f2fe);
-      color: white;
-    }
-    .screen { padding: 20px; }
-    .hidden { display: none; }
-    #game-area {
-      margin: 20px auto;
-      width: 90%; height: 200px;
-      background: rgba(255,255,255,0.1);
-      border-radius: 15px;
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer;
-    }
-    button {
-      padding: 10px 20px; margin: 5px;
-      border: none; border-radius: 12px;
-      font-size: 16px; cursor: pointer;
-      background: #ff9800; color: white;
-      transition: 0.3s;
-    }
-    button:hover { background: #e68900; }
-    .modal {
-      position: fixed; top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: rgba(0,0,0,0.6);
-      display: flex; align-items: center; justify-content: center;
-    }
-    .modal-content {
-      background: #222; padding: 20px;
-      border-radius: 15px; min-width: 300px;
-      color: white; text-align: center;
-      position: relative;
-    }
-    .close {
-      position: absolute; top: 10px; right: 20px;
-      font-size: 24px; cursor: pointer;
-    }
-    #medals-container {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, 80px);
-      gap: 10px; margin-top: 15px;
-    }
-    .medal {
-      width: 70px; height: 70px;
-      background: gold; border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-weight: bold;
-      transform-style: preserve-3d;
-      animation: spin 5s linear infinite;
-    }
-    @keyframes spin {
-      0% { transform: rotateY(0deg); }
-      100% { transform: rotateY(360deg); }
-    }
-  </style>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Zezo Clicker — Full Release</title>
+
+<!-- Firebase compat -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+
+<style>
+  :root{
+    --bg-a: #071022;
+    --bg-b: #001d2d;
+    --cta: #ff8a00;
+    --panel: rgba(255,255,255,0.03);
+    --muted: rgba(230,238,246,0.6);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,Arial; background: linear-gradient(160deg,var(--bg-a), var(--bg-b)); color:#e6eef6}
+  .container{max-width:980px;margin:18px auto;padding:18px}
+  .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border-radius:14px; padding:16px; box-shadow: 0 6px 20px rgba(2,6,23,0.6); border:1px solid rgba(255,255,255,0.03)}
+  .center{display:flex;align-items:center;justify-content:center}
+  input, select {width:100%;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:inherit;font-size:15px}
+
+  button{cursor:pointer;border:0;padding:10px 14px;border-radius:10px;font-weight:700}
+  .btn-primary{background:linear-gradient(90deg,var(--cta), #ffb86b); color:#06101a}
+  .btn-ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:inherit}
+
+  h1,h2{margin:6px 0 10px}
+  .muted{color:var(--muted);font-size:13px}
+
+  /* GAME LAYOUT */
+  .topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+  .stats{display:flex;gap:12px;align-items:center}
+  .stat{background:var(--panel);padding:10px 12px;border-radius:10px;font-weight:700;min-width:110px;text-align:center}
+  #game-area{margin:6px 0;border-radius:12px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));height:56vh;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;cursor:pointer;user-select:none}
+  #click-hint{font-size:20px;padding:8px}
+
+  /* ripple */
+  .ripple{position:absolute;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;opacity:0.55}
+
+  /* controls */
+  .controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .small{font-size:13px;padding:8px 10px;border-radius:10px}
+  .spin-wheel{width:60px;height:60px;border-radius:50%;display:grid;place-items:center;font-weight:800;background:linear-gradient(180deg,#fff6e8,#ffd19c);color:#3b1f00;box-shadow:0 8px 30px rgba(255,138,0,0.12)}
+  .spin-disabled{opacity:0.45;pointer-events:none}
+
+  /* medals panel */
+  .medals-wrap{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-top:12px}
+  .medal-card{perspective:900px;height:120px}
+  .medal-inner{width:100%;height:100%;border-radius:16px;position:relative;transform-style:preserve-3d;transition:transform 0.12s linear}
+  .medal-front, .medal-back{position:absolute;inset:0;border-radius:16px;display:flex;align-items:center;justify-content:center;backface-visibility:hidden;font-weight:800}
+  .medal-front{background:linear-gradient(135deg,#ffd54a,#ffc107);color:#3b2200;font-size:16px;box-shadow: 0 6px 18px rgba(0,0,0,0.35)}
+  .medal-back{background:linear-gradient(135deg,#0b1220,#0f1822);transform:rotateY(180deg);color:#9fb7c5;font-size:12px;flex-direction:column;gap:6px;padding:10px;text-align:center}
+  .medal-draggable{cursor:grab}
+
+  /* modal / challenge UI */
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center}
+  .modal-card{background:#07111a;padding:18px;border-radius:12px;min-width:320px;color:white}
+
+  .big-click{width:220px;height:220px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(180deg,#ff8a00,#ffca78);font-weight:900;color:#2f1200;cursor:pointer;font-size:28px;box-shadow:0 8px 30px rgba(0,0,0,0.4)}
+  .challenge-stats{display:flex;gap:12px;margin-top:12px}
+
+  /* admin messages (center overlay) */
+  #admin-messages {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: min(880px, 90vw);
+    pointer-events: none; /* messages don't block game clicks */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    z-index: 9999;
+  }
+  .admin-msg {
+    pointer-events: auto;
+    background: linear-gradient(180deg, rgba(0,0,0,0.7), rgba(0,0,0,0.55));
+    padding: 14px 18px;
+    border-radius: 12px;
+    color: white;
+    min-width: 320px;
+    max-width: 100%;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.6);
+    text-align: center;
+    font-weight: 800;
+    font-size: 18px;
+    border: 2px solid rgba(255,255,255,0.06);
+    transform: translateY(0);
+    opacity: 0;
+    animation: admin-pop .28s ease forwards;
+  }
+  @keyframes admin-pop { from { transform: translateY(-8px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+
+  .admin-from { font-size: 13px; opacity: 0.85; font-weight:700; margin-bottom:6px }
+  .admin-expire { font-size:12px; opacity:0.75; margin-top:8px; font-weight:600 }
+
+  .invisible { display: none; }
+
+  .footer{margin-top:12px;color:var(--muted);font-size:13px}
+  @media (max-width:720px){
+    #game-area{height:60vh}
+    .stat{min-width:88px}
+  }
+</style>
 </head>
 <body>
-  <!-- Login -->
-  <div id="login-screen" class="screen">
-    <h1>Login</h1>
-    <input type="text" id="username" placeholder="Username"><br><br>
-    <input type="password" id="password" placeholder="Password"><br><br>
-    <button id="login-btn">Login</button>
-    <p id="login-error"></p>
+  <div class="container">
+    <!-- LOGIN CARD -->
+    <div id="login-card" class="card center">
+      <div style="width:100%;max-width:480px">
+        <h1 class="center">Zezo Clicker</h1>
+        <div style="display:grid;gap:12px">
+          <input id="username" type="text" placeholder="Username (zezo / lilly / asser)" autocomplete="off" autocapitalize="off">
+          <input id="password" type="password" placeholder="Password" autocomplete="new-password">
+          <div style="display:flex;gap:8px">
+            <button id="login-btn" class="btn-primary">Login</button>
+            <button id="help-btn" class="btn-ghost">How to play</button>
+          </div>
+          <div id="login-msg" class="muted">Login required. Passwords are not shown anywhere in the UI.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GAME UI -->
+    <div id="game-ui" class="invisible">
+      <div class="topbar">
+        <div>
+          <h2 id="welcome">Welcome —</h2>
+          <div id="logged-as" class="muted"></div>
+        </div>
+
+        <div class="stats">
+          <div class="stat">💰 <span id="money">0</span>$</div>
+          <div class="stat">🎯 Goal: <span id="goal">7000</span>$</div>
+          <div class="stat">🏅 Medals: <span id="medal-count">0</span></div>
+        </div>
+
+        <div style="display:flex;gap:8px;align-items:center">
+          <button id="challenge-open" class="small btn-primary">⚔️ Challenge</button>
+          <button id="medals-open" class="small btn-ghost">🏅 Medals</button>
+          <button id="logout" class="small btn-ghost">Logout</button>
+          <button id="reset" class="small btn-ghost">Reset</button>
+        </div>
+      </div>
+
+      <div id="game-area" class="card">
+        <div id="click-hint">Click anywhere inside this area to earn money. Use spin & challenges to win big.</div>
+        <div id="effects" style="position:absolute;inset:0;pointer-events:none"></div>
+
+        <!-- admin messages appear here (center overlay) -->
+        <div id="admin-messages"></div>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;gap:10px;flex-wrap:wrap">
+        <div class="controls">
+          <div id="spin-btn" class="spin-wheel" title="Spin (30s cooldown)">🎡</div>
+          <div style="min-width:160px">
+            <div id="spin-feedback" class="muted" style="font-size:13px">Spin for 1000-5000$</div>
+          </div>
+        </div>
+
+        <div class="muted" style="font-size:13px">Tip: Click faster when you have higher click value. Reach the goal to earn medals.</div>
+      </div>
+
+      <div id="medals-panel" class="card" style="margin-top:14px;display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h3 style="margin:0">Your Medals</h3>
+          <div class="muted">Drag each medal to rotate in 3D</div>
+        </div>
+        <div id="medals-list" class="medals-wrap" style="margin-top:12px"></div>
+        <div class="footer">Each time you reach the goal you earn a medal and the next goal increases by $500.</div>
+      </div>
+    </div>
   </div>
 
-  <!-- Game -->
-  <div id="game-screen" class="screen hidden">
-    <h2 id="welcome"></h2>
-    <div id="stats">
-      <p>💰 Money: <span id="money">0</span>$</p>
-      <p>🎯 Goal: <span id="goal">7000</span>$</p>
+  <!-- challenge modal -->
+  <div id="challenge-modal" class="modal invisible">
+    <div class="modal-card">
+      <h3>Create Challenge</h3>
+      <div style="display:grid;gap:8px;margin-top:8px">
+        <label>Opponent
+          <select id="challenge-opponent"></select>
+        </label>
+        <label>Clicks
+          <select id="challenge-clicks">
+            <option value="100">100</option>
+            <option value="200">200</option>
+            <option value="300">300</option>
+            <option value="500">500</option>
+            <option value="1000">1000</option>
+          </select>
+        </label>
+        <label>Bet ($)
+          <input id="challenge-bet" type="number" min="500" step="100" value="500">
+        </label>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">
+          <button id="challenge-send" class="btn-primary">Send</button>
+          <button id="challenge-cancel" class="btn-ghost">Cancel</button>
+        </div>
+        <div id="challenge-msg" class="muted"></div>
+      </div>
     </div>
-    <div id="game-area">
-      <p>Click anywhere to earn money!</p>
-    </div>
-    <div id="buttons">
-      <button id="spin-btn">🎡 Spin the Wheel</button>
-      <button id="medals-btn">🏅 Medals</button>
-    </div>
-    <p id="spin-result"></p>
+  </div>
 
-    <!-- Medals Modal -->
-    <div id="medals-modal" class="modal hidden">
-      <div class="modal-content">
-        <span class="close">&times;</span>
-        <h2>Your Medals</h2>
-        <div id="medals-container"></div>
+  <!-- incoming invitation modal -->
+  <div id="incoming-modal" class="modal invisible">
+    <div class="modal-card">
+      <h3>Challenge Invitation</h3>
+      <div id="incoming-info" class="muted" style="margin-top:8px"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+        <button id="accept-invite" class="btn-primary">Accept</button>
+        <button id="decline-invite" class="btn-ghost">Decline</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- duel modal -->
+  <div id="duel-modal" class="modal invisible">
+    <div class="modal-card" style="min-width:360px">
+      <h3 id="duel-title">Duel</h3>
+      <div class="challenge-area">
+        <div id="duel-target" class="muted"></div>
+        <div id="duel-click" class="big-click">CLICK</div>
+        <div class="challenge-stats">
+          <div class="muted">You: <span id="duel-your-count">0</span></div>
+          <div class="muted">Opp: <span id="duel-op-count">0</span></div>
+        </div>
+        <div id="duel-result" class="muted" style="margin-top:8px"></div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">
+          <button id="duel-leave" class="btn-ghost">Leave</button>
+        </div>
       </div>
     </div>
   </div>
 
 <script>
-  // Firebase config
-  const firebaseConfig = {
-    apiKey: "AIzaSyAooLq0iO6pt7cEAu7VpdYmHEAyANsH4z8",
-    authDomain: "hatch-647fa.firebaseapp.com",
-    databaseURL: "https://hatch-647fa-default-rtdb.firebaseio.com",
-    projectId: "hatch-647fa",
-    storageBucket: "hatch-647fa.firebasestorage.app",
-    messagingSenderId: "1002694901238",
-    appId: "1:1002694901238:web:5c51840b40ea625e189bd7",
-    measurementId: "G-SSNDLN72PE"
-  };
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
+/* ================= CONFIG ================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyAooLq0iO6pt7cEAu7VpdYmHEAyANsH4z8",
+  authDomain: "hatch-647fa.firebaseapp.com",
+  databaseURL: "https://hatch-647fa-default-rtdb.firebaseio.com",
+  projectId: "hatch-647fa",
+  storageBucket: "hatch-647fa.firebasestorage.app",
+  messagingSenderId: "1002694901238",
+  appId: "1:1002694901238:web:5c51840b40ea625e189bd7",
+  measurementId: "G-SSNDLN72PE"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
-  // Dummy logins
-  const users = { "zezo": "000", "lilly": "246", "asser": "230" };
+/* ========== STATIC USERS (no visible passwords) ========== */
+const USERS = ['zezo','lilly','asser'];
+const PASSWORDS = { zezo:'000', lilly:'246', asser:'230' };
 
-  let currentUser = null;
-  let money = 0;
-  let goal = 7000;
-  let medals = [];
+/* ========== STATE ========== */
+let currentUser = null;
+let money = 0;
+let goal = 7000;
+let medals = [];
+let resets = 0;
+let clickValue = 1;
+let saveTimer = null;
+let spinLocked = false;
+const SPIN_COOLDOWN = 30;
+let spinCooldown = 0;
+let activeRoomListeners = {};
+let currentInvitation = null;
+let currentRoomId = null;
 
-  // DOM elements
-  const loginScreen = document.getElementById("login-screen");
-  const gameScreen = document.getElementById("game-screen");
-  const loginBtn = document.getElementById("login-btn");
-  const loginError = document.getElementById("login-error");
-  const welcome = document.getElementById("welcome");
-  const moneyEl = document.getElementById("money");
-  const goalEl = document.getElementById("goal");
-  const gameArea = document.getElementById("game-area");
-  const spinBtn = document.getElementById("spin-btn");
-  const spinResult = document.getElementById("spin-result");
-  const medalsBtn = document.getElementById("medals-btn");
-  const medalsModal = document.getElementById("medals-modal");
-  const medalsContainer = document.getElementById("medals-container");
+/* daily spin state */
+let freeSpins = 0;
+let lastDailySpinDate = null;
+let _dailyGrantTimer = null;
 
-  // Login
-  loginBtn.onclick = () => {
-    const u = document.getElementById("username").value.trim();
-    const p = document.getElementById("password").value.trim();
-    if (users[u] && users[u] === p) {
-      currentUser = u;
-      loginScreen.classList.add("hidden");
-      gameScreen.classList.remove("hidden");
-      welcome.innerText = `Welcome, ${u}!`;
-      loadProgress();
-    } else {
-      loginError.innerText = "Invalid login!";
+/* theme state */
+let discoInterval = null;
+
+/* ========== DOM ========== */
+const loginCard = document.getElementById('login-card');
+const loginBtn = document.getElementById('login-btn');
+const helpBtn = document.getElementById('help-btn');
+const usernameInp = document.getElementById('username');
+const passwordInp = document.getElementById('password');
+const loginMsg = document.getElementById('login-msg');
+
+const gameUi = document.getElementById('game-ui');
+const welcomeEl = document.getElementById('welcome');
+const loggedAs = document.getElementById('logged-as');
+const moneyEl = document.getElementById('money');
+const goalEl = document.getElementById('goal');
+const medalCountEl = document.getElementById('medal-count');
+const gameArea = document.getElementById('game-area');
+const effects = document.getElementById('effects');
+const spinBtn = document.getElementById('spin-btn');
+const spinFeedback = document.getElementById('spin-feedback');
+const medalsPanel = document.getElementById('medals-panel');
+const medalsList = document.getElementById('medals-list');
+const medalsOpen = document.getElementById('medals-open');
+const challengeOpen = document.getElementById('challenge-open');
+const logoutBtn = document.getElementById('logout');
+const resetBtn = document.getElementById('reset');
+
+const adminMessagesContainer = document.getElementById('admin-messages');
+
+/* challenge modal elements */
+const challengeModal = document.getElementById('challenge-modal');
+const opponentSelect = document.getElementById('challenge-opponent');
+const clicksSelect = document.getElementById('challenge-clicks');
+const betInput = document.getElementById('challenge-bet');
+const challengeSend = document.getElementById('challenge-send');
+const challengeCancel = document.getElementById('challenge-cancel');
+const challengeMsg = document.getElementById('challenge-msg');
+
+const incomingModal = document.getElementById('incoming-modal');
+const incomingInfo = document.getElementById('incoming-info');
+const acceptInvite = document.getElementById('accept-invite');
+const declineInvite = document.getElementById('decline-invite');
+
+const duelModal = document.getElementById('duel-modal');
+const duelTitle = document.getElementById('duel-title');
+const duelTarget = document.getElementById('duel-target');
+const duelClick = document.getElementById('duel-click');
+const duelYourCount = document.getElementById('duel-your-count');
+const duelOpCount = document.getElementById('duel-op-count');
+const duelResult = document.getElementById('duel-result');
+const duelLeave = document.getElementById('duel-leave');
+
+/* ========== HELPERS ========== */
+function uid(){ return (Date.now().toString(36) + Math.random().toString(36).slice(2,9)); }
+function nowTs(){ return Date.now(); }
+function show(el){ el.classList.remove('invisible'); }
+function hide(el){ el.classList.add('invisible'); }
+
+/* Throttle save */
+function throttleSave(){
+  if(saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(()=>{ saveProgress(); saveTimer = null; }, 1400);
+}
+
+/* ripple effect */
+function makeRipple(x,y){
+  const r = document.createElement('div');
+  r.className = 'ripple';
+  const size = Math.max(40, Math.min(gameArea.clientWidth, gameArea.clientHeight) * 0.18);
+  r.style.width = r.style.height = size + 'px';
+  r.style.left = x + 'px';
+  r.style.top = y + 'px';
+  r.style.background = 'radial-gradient(circle, rgba(255,255,255,0.55), rgba(255,255,255,0.02))';
+  effects.appendChild(r);
+  r.animate([{transform:'translate(-50%,-50%) scale(0.2)', opacity:0.7},{transform:'translate(-50%,-50%) scale(2.6)', opacity:0}], {duration:700, easing:'cubic-bezier(.2,.9,.3,1)'});
+  setTimeout(()=>r.remove(),760);
+}
+
+/* animate money */
+let moneyAnim = null;
+function animateMoney(to){
+  if(moneyAnim) cancelAnimationFrame(moneyAnim);
+  const from = Number(moneyEl.textContent) || 0;
+  const duration = 240;
+  const start = performance.now();
+  function step(t){
+    const p = Math.min(1, (t - start)/duration);
+    const v = Math.round(from + (to - from) * (1 - Math.pow(1 - p, 2)));
+    moneyEl.textContent = v;
+    if(p < 1) moneyAnim = requestAnimationFrame(step);
+    else { moneyAnim = null; moneyEl.textContent = to; }
+  }
+  moneyAnim = requestAnimationFrame(step);
+}
+
+/* ========== LOGIN / PRESENCE ========== */
+loginBtn.addEventListener('click', ()=>{
+  const u = usernameInp.value.trim().toLowerCase();
+  const p = passwordInp.value;
+  if(!u || !p) { loginMsg.textContent = 'Enter username & password'; return; }
+  if(!USERS.includes(u)){ loginMsg.textContent = 'Unknown user'; return; }
+  if(PASSWORDS[u] !== p){ loginMsg.textContent = 'Invalid credentials'; return; }
+  // success
+  currentUser = u;
+  startSession();
+});
+
+helpBtn.addEventListener('click', ()=> alert('Click in the big area to earn money. Reach goal to get medals. Use Challenge to invite online players and bet money. Admin messages show in the center of the screen.'));
+
+function startSession(){
+  loginCard.classList.add('invisible');
+  show(gameUi);
+  welcomeEl.textContent = `Welcome, ${currentUser}!`;
+  loggedAs.textContent = `Logged in as: ${currentUser}`;
+  // presence
+  const presRef = db.ref('presence/' + currentUser);
+  presRef.set(true);
+  presRef.onDisconnect().set(false);
+  // invitations listener
+  listenInvitations();
+  // theme and announcements listeners
+  listenTheme();
+  listenAnnouncements();
+  loadProgress();
+  populateOpponents();
+}
+
+/* logout */
+logoutBtn.addEventListener('click', ()=>{
+  if(currentUser){
+    db.ref('presence/'+currentUser).set(false);
+  }
+  location.reload();
+});
+
+/* reset */
+resetBtn.addEventListener('click', ()=>{
+  if(!currentUser) return;
+  if(!confirm('Reset your progress? This will remove money, medals, and goals.')) return;
+  db.ref('users/'+currentUser).set({money:0, goal:7000, medals:[], resets:0, freeSpins:0, lastDailySpinDate:null}).then(()=>{
+    money=0; goal=7000; medals=[]; resets=0; clickValue=1; freeSpins=0; lastDailySpinDate=null; refreshUI();
+  }).catch(()=>alert('Reset failed'));
+});
+
+/* ========== GAME: clicks, spin, medals ========== */
+gameArea.addEventListener('pointerdown', (ev)=>{
+  if(!currentUser) return;
+  if(currentRoomId) return; // while in duel, disable main clicks
+  const rect = gameArea.getBoundingClientRect();
+  const x = ev.clientX - rect.left;
+  const y = ev.clientY - rect.top;
+  makeRipple(x,y);
+  addMoney(clickValue);
+});
+
+function addMoney(amount){
+  money = (money||0) + amount;
+  checkGoal();
+  animateMoney(money);
+  throttleSave();
+}
+
+/* goal check & medals awarding */
+function checkGoal(){
+  if(money >= goal){
+    const id = (medals.length||0) + 1;
+    const label = `Medal #${id}`;
+    const time = new Date().toISOString();
+    medals.push({id, label, time});
+    // carryover
+    money = money - goal;
+    // increase goal
+    goal = goal + 500;
+    // resets and clickValue progression
+    resets = (resets||0) + 1;
+    clickValue = (resets === 0) ? 1 : resets * 5;
+    spinFeedback.textContent = `Goal reached! ${label} — click value: ${clickValue}`;
+    refreshUI();
+    throttleSave();
+  }
+}
+
+/* spin */
+spinBtn.addEventListener('click', ()=>{
+  if(!currentUser) { spinFeedback.textContent = 'Login to spin'; return; }
+  // free spins used first (bypass cooldown)
+  if((freeSpins || 0) > 0){
+    freeSpins = freeSpins - 1;
+    saveProgress();
+    spinFeedback.textContent = `Using free spin...`;
+    performSpin().then(prize=>{
+      spinFeedback.textContent = `You won $${prize}! (free spin)`;
+      addMoney(prize);
+    }).catch(()=>{
+      spinFeedback.textContent = 'Spin failed';
+      freeSpins = (freeSpins || 0) + 1;
+      saveProgress();
+    });
+    refreshUI();
+    return;
+  }
+  if(spinLocked) return;
+  spinLocked = true;
+  spinBtn.classList.add('spin-disabled');
+  performSpin().then(prize=>{
+    spinFeedback.textContent = `You won $${prize}!`;
+    addMoney(prize);
+    startSpinCooldown(SPIN_COOLDOWN);
+  }).catch(()=>{
+    spinFeedback.textContent = 'Spin failed';
+    spinLocked = false;
+    spinBtn.classList.remove('spin-disabled');
+  });
+});
+
+function performSpin(){
+  spinBtn.style.transition = 'transform 1.6s cubic-bezier(.2,.9,.3,1)';
+  spinBtn.style.transform = 'rotate(1080deg)';
+  return new Promise(res=>{
+    setTimeout(()=>{
+      spinBtn.style.transform = '';
+      setTimeout(()=> spinBtn.style.transition = '', 200);
+      const prizes = [1000,2000,3000,4000,5000];
+      const prize = prizes[Math.floor(Math.random()*prizes.length)];
+      res(prize);
+    }, 1600);
+  });
+}
+
+function startSpinCooldown(seconds){
+  spinCooldown = seconds;
+  updateSpinLabel();
+  const t = setInterval(()=>{
+    spinCooldown--;
+    updateSpinLabel();
+    if(spinCooldown <= 0){
+      clearInterval(t);
+      spinLocked = false;
+      spinBtn.classList.remove('spin-disabled');
+      spinFeedback.textContent = 'Spin ready!';
+      spinCooldown = 0;
+      updateSpinLabel();
     }
-  };
+  },1000);
+}
+function updateSpinLabel(){ 
+  if((freeSpins || 0) > 0){
+    spinFeedback.textContent = `Free spins: ${freeSpins} — click to use`;
+  } else if(spinCooldown>0){
+    spinFeedback.textContent = `Spin ready in ${spinCooldown}s`;
+  } else {
+    spinFeedback.textContent = 'Spin for 1000-5000$';
+  }
+}
 
-  // Clicking game
-  gameArea.onclick = () => { money++; updateMoney(); };
+/* medals UI (draggable 3D) */
+medalsOpen.addEventListener('click', ()=>{
+  medalsPanel.style.display = medalsPanel.style.display === 'none' ? 'block' : 'none';
+  renderMedals();
+});
 
-  // Update money
-  function updateMoney() {
-    moneyEl.innerText = money;
-    if (money >= goal) {
-      medals.push(`Medal ${medals.length+1}`);
-      goal += 500;
-      goalEl.innerText = goal;
+function renderMedals(){
+  medalsList.innerHTML = '';
+  medalCountEl.textContent = medals.length;
+  if(!medals || medals.length === 0){
+    medalsList.innerHTML = '<div class="muted" style="padding:12px">No medals yet — reach the goal to earn medals.</div>';
+    return;
+  }
+  medals.slice().reverse().forEach(m=>{
+    const wrap = document.createElement('div'); wrap.className = 'medal-card card';
+    wrap.style.padding = '8px';
+    const inner = document.createElement('div'); inner.className = 'medal-inner medal-draggable';
+    inner.style.background = 'transparent';
+    inner.style.height = '100%';
+    inner.style.display = 'block';
+    const front = document.createElement('div'); front.className='medal-front';
+    front.style.borderRadius='12px';
+    front.innerHTML = `<div style="font-size:20px">${m.label}</div>`;
+    const back = document.createElement('div'); back.className='medal-back';
+    back.innerHTML = `<div style="font-size:12px">Earned by</div><div style="font-size:14px">${currentUser}</div><div style="font-size:10px;color:rgba(255,255,255,0.35)">${new Date(m.time).toLocaleString()}</div>`;
+    inner.appendChild(front); inner.appendChild(back);
+    wrap.appendChild(inner);
+    medalsList.appendChild(wrap);
+
+    // draggable rotation
+    let dragging=false, sx=0, sy=0, rx=0, ry=0;
+    inner.addEventListener('pointerdown', e=>{
+      dragging=true; sx=e.clientX; sy=e.clientY;
+      inner.setPointerCapture(e.pointerId);
+    });
+    window.addEventListener('pointerup', e=>{
+      if(dragging){ dragging=false; }
+    });
+    window.addEventListener('pointermove', e=>{
+      if(!dragging) return;
+      const dx = e.clientX - sx;
+      const dy = e.clientY - sy;
+      ry = (ry + dx*0.3) % 360;
+      rx = Math.max(-60, Math.min(60, rx + dy*0.25));
+      inner.style.transform = `rotateY(${ry}deg) rotateX(${rx}deg)`;
+      sx = e.clientX; sy = e.clientY;
+    });
+    inner.addEventListener('touchstart', e=>{
+      dragging=true; sx = e.touches[0].clientX; sy = e.touches[0].clientY;
+    }, {passive:true});
+    window.addEventListener('touchend', ()=> dragging=false, {passive:true});
+    window.addEventListener('touchmove', e=>{
+      if(!dragging) return;
+      const dx = e.touches[0].clientX - sx;
+      const dy = e.touches[0].clientY - sy;
+      ry = (ry + dx*0.3) % 360;
+      rx = Math.max(-60, Math.min(60, rx + dy*0.25));
+      inner.style.transform = `rotateY(${ry}deg) rotateX(${rx}deg)`;
+      sx = e.touches[0].clientX; sy = e.touches[0].clientY;
+    }, {passive:true});
+  });
+}
+
+/* ========== SAVE / LOAD + DAILY FREE SPIN ========== */
+function saveProgress(){
+  if(!currentUser) return;
+  const payload = { money: money||0, goal: goal||7000, medals: medals||[], resets: resets||0, freeSpins: freeSpins||0, lastDailySpinDate: lastDailySpinDate || null };
+  db.ref('users/' + currentUser).set(payload).catch(err=> console.warn('Save err', err));
+}
+
+function localDateString(d = new Date()){
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function getTodayLocalString(){
+  return localDateString(new Date());
+}
+
+function loadProgress(){
+  if(!currentUser) return;
+  db.ref('users/'+currentUser).once('value').then(snap=>{
+    if(snap.exists()){
+      const d = snap.val();
+      money = Number(d.money || 0);
+      goal = Number(d.goal || 7000);
+      medals = Array.isArray(d.medals)? d.medals : (d.medals||[]);
+      resets = Number(d.resets || (d && d.medals ? d.medals.length:0) ) || 0;
+      freeSpins = Number(d.freeSpins || 0);
+      lastDailySpinDate = d.lastDailySpinDate || null;
+    } else {
+      money = 0; goal = 7000; medals = []; resets = 0; freeSpins = 0; lastDailySpinDate = null;
+    }
+    clickValue = (resets === 0) ? 1 : resets * 5;
+    checkAndGrantDailySpin();
+    refreshUI();
+  }).catch(e=>{
+    console.warn('Load fail', e);
+    money=0; goal=7000; medals=[]; resets=0; clickValue=1; freeSpins=0; lastDailySpinDate=null;
+    checkAndGrantDailySpin();
+    refreshUI();
+  });
+}
+
+function checkAndGrantDailySpin(){
+  try {
+    const today = getTodayLocalString();
+    if(lastDailySpinDate !== today){
+      freeSpins = (freeSpins || 0) + 1;
+      lastDailySpinDate = today;
+      spinFeedback.textContent = `Daily free spin awarded! Free spins: ${freeSpins}`;
       saveProgress();
     }
-    saveProgress();
-  }
+  } catch(e){ console.warn('daily grant check error', e); }
+  scheduleNextMidnightGrant();
+}
 
-  // Spin wheel
-  spinBtn.onclick = () => {
-    const prizes = [1000,2000,3000,4000,5000];
-    const prize = prizes[Math.floor(Math.random()*prizes.length)];
-    money += prize;
-    spinResult.innerText = `You won $${prize}!`;
-    updateMoney();
-  };
+function scheduleNextMidnightGrant(){
+  if(_dailyGrantTimer) { clearTimeout(_dailyGrantTimer); _dailyGrantTimer = null; }
+  const now = new Date();
+  const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1, 0);
+  const ms = nextMidnight - now;
+  const timeoutMs = Math.max(1000, Math.min(ms, 1000 * 60 * 60 * 24));
+  _dailyGrantTimer = setTimeout(() => {
+    try {
+      const today = getTodayLocalString();
+      freeSpins = (freeSpins || 0) + 1;
+      lastDailySpinDate = today;
+      spinFeedback.textContent = `Daily free spin awarded! Free spins: ${freeSpins}`;
+      saveProgress();
+    } catch(e){ console.warn('daily grant error', e); }
+    scheduleNextMidnightGrant();
+  }, timeoutMs);
+}
 
-  // Medals modal
-  medalsBtn.onclick = () => {
-    medalsModal.classList.remove("hidden");
-    medalsContainer.innerHTML = "";
-    medals.forEach(m => {
-      const div = document.createElement("div");
-      div.classList.add("medal");
-      div.innerText = m;
-      medalsContainer.appendChild(div);
+/* save on unload */
+window.addEventListener('beforeunload', ()=> { if(currentUser) db.ref('users/'+currentUser).set({money:money||0,goal:goal||7000,medals:medals,resets:resets, freeSpins: freeSpins||0, lastDailySpinDate: lastDailySpinDate || null}); });
+
+/* ========== CHALLENGE SYSTEM ========== */
+function populateOpponents(){
+  opponentSelect.innerHTML = '';
+  USERS.forEach(u => { if(u===currentUser) return; const opt = document.createElement('option'); opt.value=u; opt.textContent=u; opponentSelect.appendChild(opt); });
+}
+
+challengeOpen.addEventListener('click', ()=>{
+  if(!currentUser) return alert('Login first');
+  populateOpponents();
+  challengeMsg.textContent = '';
+  show(challengeModal);
+});
+challengeCancel.addEventListener('click', ()=> hide(challengeModal));
+
+challengeSend.addEventListener('click', ()=>{
+  const opponent = opponentSelect.value;
+  const clicks = Number(clicksSelect.value);
+  let bet = Number(betInput.value) || 0;
+  if(!opponent || opponent === currentUser) { challengeMsg.textContent = 'Choose an opponent'; return; }
+  if(clicks < 10) { challengeMsg.textContent = 'Invalid clicks'; return; }
+  if(bet < 500) { challengeMsg.textContent = 'Min bet 500$'; return; }
+
+  const initiatorMoneyRef = db.ref('users/' + currentUser + '/money');
+  initiatorMoneyRef.transaction(current => {
+    if(current === null) current = 0;
+    if(current >= bet) return current - bet;
+    return;
+  }, (err, committed, snap) => {
+    if(err || !committed){
+      challengeMsg.textContent = 'Not enough funds to place bet';
+      return;
+    }
+    const invId = uid();
+    const roomId = 'room_' + uid();
+    const invitation = { from: currentUser, clicks, bet, id: invId, roomId, ts: Date.now() };
+    db.ref('invitations/' + opponent + '/' + invId).set(invitation).then(()=>{
+      challengeMsg.textContent = 'Invitation sent. Waiting for response...';
+      const roomRef = db.ref('rooms/' + roomId);
+      roomRef.on('value', snapRoom => {
+        const r = snapRoom.val();
+        if(!r) return;
+        if(r.started){
+          hide(challengeModal);
+          openDuel(roomId, r);
+        }
+      });
+      setTimeout(()=> {
+        db.ref('invitations/' + opponent + '/' + invId).get().then(s=>{
+          if(s.exists()){
+            db.ref('invitations/' + opponent + '/' + invId).remove();
+            db.ref('users/' + currentUser + '/money').transaction(m => (m||0) + bet);
+            challengeMsg.textContent = 'No response. Bet refunded.';
+          }
+        });
+      }, 60000);
+    }).catch(e => {
+      console.warn('Invite write fail', e);
+      db.ref('users/' + currentUser + '/money').transaction(m => (m||0) + bet);
+      challengeMsg.textContent = 'Failed to send invitation - refunded';
     });
-  };
-  medalsModal.querySelector(".close").onclick = () => medalsModal.classList.add("hidden");
+  });
+});
 
-  // Save progress
-  function saveProgress() {
-    if (!currentUser) return;
-    db.ref("users/"+currentUser).set({ money, goal, medals });
-  }
+/* Listen for incoming invitations */
+function listenInvitations(){
+  if(!currentUser) return;
+  const invRef = db.ref('invitations/' + currentUser);
+  invRef.off();
+  invRef.on('child_added', snap => {
+    const inv = snap.val(); inv._key = snap.key;
+    currentInvitation = inv;
+    incomingInfo.textContent = `${inv.from} invites you: ${inv.clicks} clicks — bet $${inv.bet}`;
+    show(incomingModal);
+  });
+}
 
-  // Load progress
-  function loadProgress() {
-    db.ref("users/"+currentUser).once("value").then(snap => {
-      if (snap.exists()) {
-        const data = snap.val();
-        money = data.money || 0;
-        goal = data.goal || 7000;
-        medals = data.medals || [];
-        moneyEl.innerText = money;
-        goalEl.innerText = goal;
+/* decline invite */
+declineInvite.addEventListener('click', ()=>{
+  if(!currentInvitation) { hide(incomingModal); return; }
+  const inv = currentInvitation;
+  db.ref('invitations/' + currentUser + '/' + inv._key).remove();
+  db.ref('users/' + inv.from + '/money').transaction(m => (m||0) + inv.bet);
+  currentInvitation = null;
+  hide(incomingModal);
+});
+
+/* accept invite */
+acceptInvite.addEventListener('click', ()=>{
+  if(!currentInvitation) return;
+  const inv = currentInvitation;
+  const myMoneyRef = db.ref('users/' + currentUser + '/money');
+  myMoneyRef.transaction(current => {
+    if(current === null) current = 0;
+    if(current >= inv.bet) return current - inv.bet;
+    return;
+  }, (err, committed, snap) => {
+    if(err || !committed){
+      db.ref('invitations/' + inv.from + '/' + inv.id).remove().catch(()=>{});
+      db.ref('users/' + inv.from + '/money').transaction(m => (m||0) + inv.bet);
+      alert('Not enough money to accept. Invitation cancelled.');
+      currentInvitation = null;
+      hide(incomingModal);
+      return;
+    }
+    const roomData = {
+      players: { a: inv.from, b: currentUser },
+      target: inv.clicks,
+      bet: inv.bet,
+      started: true,
+      counts: { [inv.from]: 0, [currentUser]: 0 },
+      ts: Date.now()
+    };
+    db.ref('rooms/' + inv.roomId).set(roomData).then(()=>{
+      db.ref('invitations/' + currentUser + '/' + inv._key).remove().catch(()=>{});
+      db.ref('invitations/' + inv.from + '/' + inv.id).remove().catch(()=>{});
+      currentInvitation = null;
+      hide(incomingModal);
+      openDuel(inv.roomId, roomData);
+    }).catch(e=>{
+      console.warn('Create room failed', e);
+      db.ref('users/' + currentUser + '/money').transaction(m => (m||0) + inv.bet);
+      db.ref('users/' + inv.from + '/money').transaction(m => (m||0) + inv.bet);
+      alert('Failed to start duel. Bets refunded.');
+      currentInvitation = null;
+      hide(incomingModal);
+    });
+  });
+});
+
+/* openDuel */
+function openDuel(roomId, roomData){
+  currentRoomId = roomId;
+  show(duelModal);
+  duelTitle.textContent = `Duel: ${roomData.players.a} vs ${roomData.players.b}`;
+  duelTarget.textContent = `Target: ${roomData.target} clicks — Bet: $${roomData.bet} each`;
+  duelYourCount.textContent = '0'; duelOpCount.textContent = '0'; duelResult.textContent = '';
+
+  const roomRef = db.ref('rooms/' + roomId);
+  const onRoomValue = roomRef.on('value', snap=>{
+    const r = snap.val();
+    if(!r) return;
+    const counts = r.counts || {};
+    const yourCount = counts[currentUser] || 0;
+    const otherUser = (r.players.a === currentUser) ? r.players.b : r.players.a;
+    const otherCount = counts[otherUser] || 0;
+    duelYourCount.textContent = yourCount;
+    duelOpCount.textContent = otherCount;
+    if(r.winner){
+      const winner = r.winner;
+      if(r.awarded !== true){
+        db.ref('users/' + winner + '/money').transaction(m => (m||0) + (r.bet * 2));
+        roomRef.update({ awarded: true });
       }
+      duelResult.textContent = (winner === currentUser) ? 'You won! Prize added.' : `You lost. ${winner} won.`;
+      setTimeout(()=> { closeDuel(roomId); refreshUI(); }, 3500);
+    }
+  });
+  activeRoomListeners[roomId] = onRoomValue;
+
+  duelClick.onclick = () => {
+    if(!currentRoomId) return;
+    const countRef = db.ref(`rooms/${roomId}/counts/${currentUser}`);
+    countRef.transaction(cur => ( (cur||0) + 1 ), (err, committed, snap)=>{
+      if(err || !committed) return;
+      const newVal = snap.val();
+      db.ref(`rooms/${roomId}`).once('value').then(s => {
+        const r = s.val();
+        if(!r) return;
+        const target = r.target;
+        if(newVal >= target && !r.winner){
+          db.ref(`rooms/${roomId}/winner`).set(currentUser);
+        }
+      });
     });
+  };
+}
+
+function closeDuel(roomId){
+  hide(duelModal);
+  if(roomId && activeRoomListeners[roomId]){
+    db.ref('rooms/' + roomId).off('value', activeRoomListeners[roomId]);
+    delete activeRoomListeners[roomId];
   }
+  currentRoomId = null;
+  duelClick.onclick = null;
+}
+
+duelLeave.addEventListener('click', ()=> { if(!currentRoomId) hide(duelModal); else { closeDuel(currentRoomId); hide(duelModal); } });
+
+/* ========== ANNOUNCEMENTS (controller -> game) ========== */
+/*
+  Behavior:
+   - Listen to /announcements ordered by ts.
+   - For each announcement 'a': if !a.seen || !a.seen[currentUser] then display it.
+   - When displayed for this user, set /announcements/<id>/seen/<currentUser> = true so it won't show again for them on refresh.
+   - New messages appear above older ones (newest on top).
+*/
+
+function listenAnnouncements(){
+  if(!currentUser) return;
+  const annRef = db.ref('announcements').orderByChild('ts');
+  annRef.off();
+  // load existing announcements once to display backlog
+  annRef.once('value').then(snap => {
+    const data = snap.val() || {};
+    const arr = Object.values(data).sort((a,b)=> a.ts - b.ts); // ascending
+    arr.forEach(a => handleAnnouncement(a));
+  });
+  // then watch for new ones
+  db.ref('announcements').on('child_added', snap => {
+    const a = snap.val();
+    handleAnnouncement(a);
+  });
+  // clean up removed children visually
+  db.ref('announcements').on('child_removed', snap => {
+    const id = snap.key;
+    const el = document.getElementById('ann_' + id);
+    if(el) el.remove();
+  });
+}
+
+function handleAnnouncement(a){
+  if(!a || !a.id) return;
+  // if already seen by this user, skip
+  if(a.seen && a.seen[currentUser]) return;
+  // show announcement
+  displayAnnouncement(a);
+  // mark seen for this user so it won't reappear even after refresh
+  db.ref(`announcements/${a.id}/seen/${currentUser}`).set(true).catch(e=> console.warn('mark seen failed', e));
+}
+
+function displayAnnouncement(a){
+  // create element; newest should be on top -> we will prepend to container
+  const id = a.id || ('ann_' + Math.random().toString(36).slice(2,9));
+  const el = document.createElement('div');
+  el.className = 'admin-msg';
+  el.id = 'ann_' + id;
+  el.innerHTML = `<div class="admin-from">${a.from || 'Admin'}</div><div class="admin-text">${a.text || ''}</div><div class="admin-expire muted">Hiding in ${Math.ceil((a.durationSec||8))}s</div>`;
+  // prepend -> newest on top
+  adminMessagesContainer.prepend(el);
+  // update countdown text every second and remove after duration
+  let remaining = Math.max(1, Number(a.durationSec || 8));
+  const expireLabel = el.querySelector('.admin-expire');
+  expireLabel.textContent = `Hiding in ${remaining}s`;
+  const interval = setInterval(()=> {
+    remaining--;
+    if(remaining <= 0){
+      clearInterval(interval);
+      el.remove();
+      return;
+    }
+    expireLabel.textContent = `Hiding in ${remaining}s`;
+  }, 1000);
+  // also remove after exact duration in case tab hidden
+  setTimeout(()=> { el.remove(); clearInterval(interval); }, (a.durationSec || 8) * 1000 + 150);
+}
+
+/* ========== THEME HANDLING (controller -> game) ========== */
+/*
+  Controller writes /theme/current with payload: { name, ts, presets }
+  presets: { bg: [...colors], btn: '#hex' } or for disco, bg array of colors
+*/
+function listenTheme(){
+  const themeRef = db.ref('theme/current');
+  themeRef.off();
+  themeRef.on('value', snap => {
+    const t = snap.val();
+    if(!t) return applyTheme('original', null);
+    applyThemePayload(t);
+  });
+}
+
+function applyThemePayload(payload){
+  if(!payload) return;
+  const name = payload.name || 'original';
+  const p = payload.presets || null;
+  applyTheme(name, p);
+}
+
+function applyTheme(name, presets=null){
+  // clear disco if present
+  if(discoInterval) { clearInterval(discoInterval); discoInterval = null; }
+  const known = {
+    original: { bg: ['#071022','#001d2d'], btn: '#06b6d4' },
+    red: { bg: ['#2b0216','#3b071f'], btn: '#ff3b3b' },
+    green: { bg: ['#021b0b','#054d2c'], btn: '#16a34a' },
+    blue: { bg: ['#021033','#03396b'], btn: '#3b82f6' },
+    pink: { bg: ['#2b0216','#3b0630'], btn: '#ec4899' },
+    purple: { bg: ['#0b021a','#21063a'], btn: '#8b5cf6' },
+    yellow: { bg: ['#2b2300','#3b2c00'], btn: '#f59e0b' },
+    black: { bg: ['#000000','#0a0a0a'], btn: '#111111' },
+    disco: { bg: ['#ff3b3b','#f97316','#facc15','#34d399','#60a5fa'], btn: 'disco' }
+  };
+  const preset = presets || (known[name] || known.original);
+  if(name === 'disco' || preset.btn === 'disco'){
+    // disco: rapidly cycle body's gradient through preset colors
+    let i = 0;
+    discoInterval = setInterval(()=>{
+      const colors = preset.bg;
+      const a = colors[i % colors.length];
+      const b = colors[(i+1) % colors.length];
+      document.documentElement.style.setProperty('--bg-a', a);
+      document.documentElement.style.setProperty('--bg-b', b);
+      // set button color to next color for fun
+      document.documentElement.style.setProperty('--cta', colors[(i+2) % colors.length]);
+      i++;
+    }, 600);
+  } else {
+    document.documentElement.style.setProperty('--bg-a', preset.bg[0] || '#071022');
+    document.documentElement.style.setProperty('--bg-b', preset.bg[1] || (preset.bg[0] || '#001d2d'));
+    document.documentElement.style.setProperty('--cta', preset.btn || '#ff8a00');
+  }
+  // update spin button color quickly by direct style (some elements are styled inline)
+  // (buttons using .btn-primary read --cta from CSS only on load; but we can also update computed appearance)
+  // We'll keep CSS variable update enough: .btn-primary uses --cta.
+}
+
+/* ========== LISTENERS / INIT ========== */
+function listenTheme(){} // placeholder so function exists before definition above; real listener assigned in startSession
+// but already defined above — reassign properly:
+(function(){ /* noop */ })();
+
+/* ========== INITIAL UI ACTIONS ========== */
+usernameInp.addEventListener('keydown', e=> { if(e.key==='Enter') passwordInp.focus(); });
+passwordInp.addEventListener('keydown', e=> { if(e.key==='Enter') loginBtn.click(); });
+
+/* ========== POPULATE USERS (for challenges) ========== */
+function populateOpponents(){
+  opponentSelect.innerHTML = '';
+  USERS.forEach(u => { if(u===currentUser) return; const o = document.createElement('option'); o.value=u; o.textContent=u; opponentSelect.appendChild(o); });
+}
+
+/* ========== ANNOUNCEMENTS AND THEME LISTENERS START ON SESSION ========== */
+/* startSession already calls listenAnnouncements() and listenTheme() */
+
+/* ========== REFRESH UI ========== */
+function refreshUI(){
+  animateMoney(money||0);
+  goalEl.textContent = goal;
+  medalCountEl.textContent = medals.length;
+  renderMedals();
+  updateSpinLabel();
+}
+
+/* ========== INITIALIZE ========== */
+(function init(){
+  // initial UI defaults
+  hide(gameUi);
+  medalsPanel.style.display = 'none';
+  // ensure theme listener exists even before login: apply original
+  applyTheme('original');
+})();
 </script>
 </body>
 </html>
