@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Click Game</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+</head>
+<body>
+  <div id="login-screen" class="screen">
+    <h1>Login</h1>
+    <input type="text" id="username" placeholder="Username">
+    <input type="password" id="password" placeholder="Password">
+    <button id="login-btn">Login</button>
+    <p id="login-error"></p>
+  </div>
+
+  <div id="game-screen" class="screen hidden">
+    <h2 id="welcome"></h2>
+    <div id="stats">
+      <p>💰 Money: <span id="money">0</span>$</p>
+      <p>🎯 Goal: <span id="goal">7000</span>$</p>
+    </div>
+
+    <div id="game-area">
+      <p>Click anywhere to earn money!</p>
+    </div>
+
+    <div id="buttons">
+      <button id="spin-btn">🎡 Spin the Wheel</button>
+      <button id="medals-btn">🏅 Medals</button>
+      <button id="challenge-btn">⚔️ Challenge</button>
+    </div>
+
+    <!-- Spin Result -->
+    <p id="spin-result"></p>
+
+    <!-- Medals Modal -->
+    <div id="medals-modal" class="modal hidden">
+      <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2>Your Medals</h2>
+        <div id="medals-container"></div>
+      </div>
+    </div>
+
+    <!-- Challenge Modal -->
+    <div id="challenge-modal" class="modal hidden">
+      <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2>Create a Challenge</h2>
+        <label>Clicks:
+          <select id="challenge-clicks">
+            <option>100</option><option>200</option><option>300</option><option>500</option><option>1000</option>
+          </select>
+        </label>
+        <label>Bet ($):
+          <input type="number" id="challenge-bet" min="500" step="100" value="500">
+        </label>
+        <button id="send-challenge">Send Challenge</button>
+      </div>
+    </div>
+
+    <!-- Incoming Challenge -->
+    <div id="incoming-challenge" class="modal hidden">
+      <div class="modal-content">
+        <p id="challenge-text"></p>
+        <button id="accept-challenge">Accept</button>
+        <button id="decline-challenge">Decline</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
